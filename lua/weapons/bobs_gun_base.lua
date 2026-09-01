@@ -194,6 +194,9 @@ function SWEP:Deploy()
 
     if self.DeployDelay then
         self:SetNextPrimaryFire( CurTime() + self.DeployDelay )
+    else -- allow suppressor anim canceling 
+        self.NextSilence = CurTime()
+        self:SetNextPrimaryFire(self.DeployDelay or CurTime())
     end
 
     if self:GetReloading() then
@@ -926,7 +929,7 @@ function SWEP:Silencer()
 
     owner:SetFOV( 0, self.IronSightTime )
     self:SetIronsights( false )
-    self:SetReloading( true ) -- i know we're not reloading but it works
+    --self:SetReloading( true ) -- i know we're not reloading but it works
 
     if self.SilencerAttached then
         self:SendWeaponAnim( ACT_VM_DETACH_SILENCER )
