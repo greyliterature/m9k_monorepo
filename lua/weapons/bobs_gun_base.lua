@@ -87,6 +87,16 @@ cvars.AddChangeCallback( "M9KDamageMultiplier", dmgMultCallback, "gunbase" )
 
 local m9k_enginespread = CreateConVar( "m9k_enginespread", "0", { FCVAR_ARCHIVE, FCVAR_REPLICATED, FCVAR_NOTIFY }, "Use engine spread for M9K weapons, not recommended" )
 
+local shouldRaiseSights = nil
+if CLIENT then
+    local shouldRaiseSightsCvar = GetConVar( "M9K_cl_raise_sights" )
+    shouldRaiseSights = shouldRaiseSightsCvar:GetString()
+    local function shouldRaiseSightsCallback( _, _, new )
+        shouldRaiseSights = new
+    end
+    cvars.AddChangeCallback( "M9K_cl_raise_sights", shouldRaiseSightsCallback, "gunbase" )
+end
+
 SWEP.IronSightsPos = Vector( 0, 0, 0 )
 SWEP.IronSightsAng = Vector( 0, 0, 0 )
 
@@ -357,7 +367,6 @@ function SWEP:FireAnimationEvent( _pos, _ang, event, _options )
     local isCssMuzzleFlash = ( event == 5001 or event == 5011 or event == 5021 or event == 5031 )
     if isCssMuzzleFlash and ( self.SilencerAttached or self.HasBuiltInSilencer ) then return true end
     if isCssMuzzleFlash and not self:IsFirstPerson() then return true end
-
     if isCssMuzzleFlash and self.CSMuzzleFlashes then
         local data = EffectData()
         data:SetFlags( 0 )
@@ -428,8 +437,7 @@ function SWEP:FireAnimation()
     if not CLIENT then return end
     if not IsFirstTimePredicted() then return end
     if owner ~= LocalPlayer() then return end
-    if EyePos() ~= owner:EyePos() then return end
-
+    if EyePos() ~= owner:EyePos() and shouldRaiseSights == "1" or (self:IsFirstPerson() == false) then return end -- The exception for shouldRaiseSights == "1" breaks just about every muzzleflash, the mp40 being the most noticeable. The original code just doesn't play the muzzleflash while ironsighted, but that is too ugly if the sights aren't raised, so this way is better than nothing.
     local vm = owner:GetViewModel()
     if not self.NoMuzzleFlash then
         local muzzleAtt = vm:GetAttachment( 1 )
@@ -895,11 +903,11 @@ function SWEP:Reload()
 
         if not self:IsRunning() and owner:KeyDown( IN_ATTACK2 ) and self.Scoped == false then
             owner:SetFOV( self.Secondary.IronFOV, self.IronSightTime )
-            self.IronSightsPos = self.SightsPos -- Bring it up
-            self.IronSightsAng = self.SightsAng -- Bring it up
+            self.IronSightsPos = ((shouldRaiseSights == "1" and self.SightsPos) or vec_origin)  -- Bring it up
+            self.IronSightsAng =  ((shouldRaiseSights == "1" and self.SightsAng) or vec_origin)  -- Bring it up
             self:SetIronsights( true )
             if CLIENT then
-                self.DrawCrosshair = false
+                self.DrawCrosshair = ((shouldRaiseSights == "0" and true) or false)
             end
 
             return
@@ -1029,6 +1037,7 @@ function SWEP:IronSight()
         if self:GetNextPrimaryFire() <= ( CurTime() + self.IronSightTime ) then
             self:SetNextPrimaryFire( CurTime() + self.IronSightTime )
         end
+
         selfTbl.IronSightsPos = selfTbl.RunSightsPos
         selfTbl.IronSightsAng = selfTbl.RunSightsAng
         self:SetIronsights( true )
@@ -1046,10 +1055,10 @@ function SWEP:IronSight()
     -- Set iron sights
     if not self:GetIronsights() and owner:KeyDown( IN_ATTACK2 ) and ( not self:IsRunning() or selfTbl.CanShootWhileRunning ) and not self:GetReloading() then
         owner:SetFOV( selfTbl.Secondary.IronFOV, self.IronSightTime )
-        selfTbl.IronSightsPos = selfTbl.SightsPos
-        selfTbl.IronSightsAng = selfTbl.SightsAng
+        selfTbl.IronSightsPos = ((shouldRaiseSights == "1" and selfTbl.SightsPos) or vec_origin)
+        selfTbl.IronSightsAng = ((shouldRaiseSights == "1" and selfTbl.SightsAng) or vec_origin)
+        selfTbl.DrawCrosshair = ((shouldRaiseSights == "0"  and true) or false)
         self:SetIronsights( true )
-        selfTbl.DrawCrosshair = false
     end
 
     -- Unset iron sights
