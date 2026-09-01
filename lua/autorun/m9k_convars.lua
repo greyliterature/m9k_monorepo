@@ -19,3 +19,7 @@ CreateConVar( "nuke_breakconstraints", 1, { FCVAR_REPLICATED, FCVAR_ARCHIVE }, "
 CreateConVar( "nuke_disintegration", 1, { FCVAR_REPLICATED, FCVAR_ARCHIVE }, "nuke variables" )
 CreateConVar( "nuke_damage", 100, { FCVAR_REPLICATED, FCVAR_ARCHIVE }, "nuke variables" )
 CreateConVar( "nuke_epic_blast.mp3e", 1, { FCVAR_REPLICATED, FCVAR_ARCHIVE }, "nuke variables" )
+
+if CLIENT then
+    CreateClientConVar("M9K_cl_raise_sights", "1", true, false, "Whether or not to raise weapon when ironsighting", 0, 1)
+end
