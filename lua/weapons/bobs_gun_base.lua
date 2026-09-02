@@ -109,6 +109,7 @@ local entity_GetOwner = entMeta.GetOwner
 
 local playerMeta = FindMetaTable( "Player" )
 local player_KeyDown = playerMeta.KeyDown
+local player_KeyDown_Last = playerMeta.KeyDownLast
 
 function SWEP:Initialize()
     self.Reloadaftershoot = 0 -- Can't reload when firing
@@ -277,13 +278,25 @@ function SWEP:IsCrouching()
     return crouchDown
 end
 
+local startedNoSpeed = nil
+local stoppedNoSpeed = nil
 function SWEP:IsRunning()
     local owner = entity_GetOwner( self )
     if not IsValid( owner ) then return false end
     if not owner:IsPlayer() then return false end
 
     local sprintDown = player_KeyDown( owner, IN_SPEED )
-    if player_KeyDown( owner, IN_FORWARD ) or player_KeyDown( owner, IN_BACK ) or player_KeyDown( owner, IN_MOVELEFT ) or player_KeyDown( owner, IN_MOVERIGHT ) then
+    --local conflictingDirection = (player_KeyDown( owner, IN_FORWARD ) and player_KeyDown( owner, IN_BACK ) and not player_KeyDown()) or (player_KeyDown( owner, IN_MOVELEFT ) and player_KeyDown( owner, IN_MOVERIGHT ))
+    local lastDesiredForwardMove = 0 + (((player_KeyDown_Last( owner, IN_FORWARD ) and player_KeyDown_Last( owner, IN_BACK ) or (not player_KeyDown_Last(owner, IN_FORWARD) and not player_KeyDown_Last(owner, IN_BACK))) and 0) or 1)
+    local lastDesiredSideMove = 0 + (((player_KeyDown_Last(owner, IN_MOVELEFT) and player_KeyDown_Last(owner, IN_MOVERIGHT) or (not player_KeyDown_Last(owner, IN_MOVELEFT) and not player_KeyDown_Last(owner, IN_MOVERIGHT))) and 0) or 1)
+    local wasNoSpeed = lastDesiredForwardMove == 0 and lastDesiredSideMove == 0
+    local desiredForwardMove = 0 + (((player_KeyDown( owner, IN_FORWARD ) and player_KeyDown( owner, IN_BACK ) or (not player_KeyDown(owner, IN_FORWARD) and not player_KeyDown(owner, IN_BACK))) and 0) or 1)
+    local desiredSideMove = 0 + (((player_KeyDown(owner, IN_MOVELEFT) and player_KeyDown(owner, IN_MOVERIGHT) or (not player_KeyDown(owner, IN_MOVELEFT) and not player_KeyDown(owner, IN_MOVERIGHT))) and 0) or 1)
+    local noSpeed = desiredForwardMove == 0 and desiredSideMove == 0
+    startedNoSpeed = noSpeed and not wasNoSpeed
+    stoppedNoSpeed = not noSpeed and wasNoSpeed
+
+    if player_KeyDown(owner, IN_FORWARD) or player_KeyDown(owner, IN_BACK) or player_KeyDown(owner, IN_MOVELEFT) or player_KeyDown(owner, IN_MOVERIGHT) and not conflictingDirection then
         return sprintDown
     end
 
@@ -309,7 +322,7 @@ function SWEP:StoppedRunning()
     local isRunning = self:IsRunning()
     local wasRunning = self:GetRunning()
 
-    return not isRunning and wasRunning
+    return not isRunning and wasRunning or (startedNoSpeed == true and true)
 end
 
 if CLIENT then
@@ -511,7 +524,7 @@ function SWEP:PrimaryAttack()
 
     local owner = entity_GetOwner( self )
 
-    if not self.CanShootWhileRunning and self:IsRunning() and not self:IsCrouching() then
+    if not self.CanShootWhileRunning and self:IsRunning() and not self:IsCrouching() and noSpeed == false then
         self:SetNextPrimaryFire( CurTime() + 0.2 )
         return false
     end
@@ -940,10 +953,11 @@ function SWEP:Reload()
             return
         end
 
-        if not self.CanShootWhileRunning and self:IsRunning() and not self:IsCrouching() then
+        if not self.CanShootWhileRunning and self:IsRunning() and not self:IsCrouching() and noSpeed == false then
             if self:GetNextPrimaryFire() <= CurTime() + .03 then
                 self:SetNextPrimaryFire( CurTime() + self.IronSightTime ) -- Make it so you can't shoot for another quarter second
             end
+
             self.IronSightsPos = self.RunSightsPos -- Hold it down
             self.IronSightsAng = self.RunSightsAng -- Hold it down
             self:SetIronsights( true )
@@ -1060,7 +1074,7 @@ function SWEP:IronSight()
     end
 
     -- Set run effect
-    if not self.CanShootWhileRunning and self:StartedRunning() and not self:GetReloading() and not self:IsCrouching() or (stoppedCrouching and self:IsRunning()) then
+    if not self.CanShootWhileRunning and self:StartedRunning() and not self:GetReloading() and not self:IsCrouching() or (stoppedCrouching and self:IsRunning()) or (stoppedNoSpeed and self:IsRunning()) then
         if self:GetNextPrimaryFire() <= ( CurTime() + self.IronSightTime ) then
             self:SetNextPrimaryFire( CurTime() + self.IronSightTime )
         end
@@ -1072,7 +1086,7 @@ function SWEP:IronSight()
     end
 
     -- Unset run effect
-    if not selfTbl.CanShootWhileRunning and ((self:StoppedRunning() and not self:IsCrouching()) or (self:IsRunning() and startedCrouching)) then
+    if not selfTbl.CanShootWhileRunning and ((self:StoppedRunning() and not self:IsCrouching()) or (self:IsRunning() and startedCrouching)) or (startedNoSpeed and not self:IsRunning()) then
         self:SetIronsights( false )
         owner:SetFOV( 0, self.IronSightTime )
         selfTbl.DrawCrosshair = selfTbl.OrigCrossHair
@@ -1090,7 +1104,6 @@ function SWEP:IronSight()
 
     -- Unset iron sights
     if self:GetIronsights() and owner:KeyReleased( IN_ATTACK2 ) then
-        print("3")
         owner:SetFOV( 0, self.IronSightTime )
         selfTbl.DrawCrosshair = selfTbl.OrigCrossHair
         self:SetIronsights( false )
