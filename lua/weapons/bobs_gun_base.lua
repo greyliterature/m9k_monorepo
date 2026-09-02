@@ -250,6 +250,29 @@ function SWEP:OnRemove()
     end
 end
 
+function SWEP:GetCrouching()
+    return self.Crouching
+end
+
+local isCrouching = nil
+local wasCrouching = nil
+local startedCrouching = nil
+local stoppedCrouching = nil
+function SWEP:IsCrouching()
+    local owner = entity_GetOwner( self )
+    if not IsValid( owner ) then return false end
+    if not owner:IsPlayer() then return false end
+
+    local crouchDown = player_KeyDown( owner, IN_DUCK )
+    isCrouching = crouchDown
+    wasCrouching = self:GetCrouching()
+    startedCrouching = isCrouching and not wasCrouching
+    stoppedCrouching = not isCrouching and wasCrouching
+    self.Crouching = isCrouching
+
+    return crouchDown
+end
+
 function SWEP:IsRunning()
     local owner = entity_GetOwner( self )
     if not IsValid( owner ) then return false end
@@ -484,7 +507,7 @@ function SWEP:PrimaryAttack()
 
     local owner = entity_GetOwner( self )
 
-    if not self.CanShootWhileRunning and self:IsRunning() then
+    if not self.CanShootWhileRunning and self:IsRunning() and not self:IsCrouching() then
         self:SetNextPrimaryFire( CurTime() + 0.2 )
         return false
     end
@@ -913,7 +936,7 @@ function SWEP:Reload()
             return
         end
 
-        if not self.CanShootWhileRunning and self:IsRunning() then
+        if not self.CanShootWhileRunning and self:IsRunning() and not self:IsCrouching() then
             if self:GetNextPrimaryFire() <= CurTime() + .03 then
                 self:SetNextPrimaryFire( CurTime() + self.IronSightTime ) -- Make it so you can't shoot for another quarter second
             end
@@ -1033,11 +1056,10 @@ function SWEP:IronSight()
     end
 
     -- Set run effect
-    if not self.CanShootWhileRunning and self:StartedRunning() and not self:GetReloading() then
+    if not self.CanShootWhileRunning and self:StartedRunning() and not self:GetReloading() and not self:IsCrouching() or (stoppedCrouching and self:IsRunning()) then
         if self:GetNextPrimaryFire() <= ( CurTime() + self.IronSightTime ) then
             self:SetNextPrimaryFire( CurTime() + self.IronSightTime )
         end
-
         selfTbl.IronSightsPos = selfTbl.RunSightsPos
         selfTbl.IronSightsAng = selfTbl.RunSightsAng
         self:SetIronsights( true )
@@ -1046,14 +1068,15 @@ function SWEP:IronSight()
     end
 
     -- Unset run effect
-    if not selfTbl.CanShootWhileRunning and self:StoppedRunning() then
+    if not selfTbl.CanShootWhileRunning and ((self:StoppedRunning() and not self:IsCrouching()) or (self:IsRunning() and startedCrouching)) then
         self:SetIronsights( false )
         owner:SetFOV( 0, self.IronSightTime )
         selfTbl.DrawCrosshair = selfTbl.OrigCrossHair
     end
 
+
     -- Set iron sights
-    if not self:GetIronsights() and owner:KeyDown( IN_ATTACK2 ) and ( not self:IsRunning() or selfTbl.CanShootWhileRunning ) and not self:GetReloading() then
+    if not self:GetIronsights() and owner:KeyDown( IN_ATTACK2 ) and ( ( not self:IsRunning() or selfTbl.CanShootWhileRunning ) or ( self:IsRunning() and self:IsCrouching())) and not self:GetReloading() then
         owner:SetFOV( selfTbl.Secondary.IronFOV, self.IronSightTime )
         selfTbl.IronSightsPos = ((shouldRaiseSights == "1" and selfTbl.SightsPos) or vec_origin)
         selfTbl.IronSightsAng = ((shouldRaiseSights == "1" and selfTbl.SightsAng) or vec_origin)
@@ -1063,12 +1086,13 @@ function SWEP:IronSight()
 
     -- Unset iron sights
     if self:GetIronsights() and owner:KeyReleased( IN_ATTACK2 ) then
+        print("3")
         owner:SetFOV( 0, self.IronSightTime )
         selfTbl.DrawCrosshair = selfTbl.OrigCrossHair
         self:SetIronsights( false )
     end
 
-    if pressingM2 and not pressingE and not self:IsRunning() then
+    if pressingM2 and not pressingE and (not self:IsRunning() or self:IsCrouching()) then
         selfTbl.SwayScale = 0.05
         selfTbl.BobScale  = 0.05
     else
@@ -1133,6 +1157,7 @@ function SWEP:Think()
     self:ThinkCustom()
 
     self:SetRunning( self:IsRunning() )
+    self:SetCrouching( self:IsCrouching() )
 end
 
 if CLIENT then
