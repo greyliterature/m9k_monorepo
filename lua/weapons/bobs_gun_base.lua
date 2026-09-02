@@ -286,7 +286,6 @@ function SWEP:IsRunning()
     if not owner:IsPlayer() then return false end
 
     local sprintDown = player_KeyDown( owner, IN_SPEED )
-    --local conflictingDirection = (player_KeyDown( owner, IN_FORWARD ) and player_KeyDown( owner, IN_BACK ) and not player_KeyDown()) or (player_KeyDown( owner, IN_MOVELEFT ) and player_KeyDown( owner, IN_MOVERIGHT ))
     local lastDesiredForwardMove = 0 + (((player_KeyDown_Last( owner, IN_FORWARD ) and player_KeyDown_Last( owner, IN_BACK ) or (not player_KeyDown_Last(owner, IN_FORWARD) and not player_KeyDown_Last(owner, IN_BACK))) and 0) or 1)
     local lastDesiredSideMove = 0 + (((player_KeyDown_Last(owner, IN_MOVELEFT) and player_KeyDown_Last(owner, IN_MOVERIGHT) or (not player_KeyDown_Last(owner, IN_MOVELEFT) and not player_KeyDown_Last(owner, IN_MOVERIGHT))) and 0) or 1)
     local wasNoSpeed = lastDesiredForwardMove == 0 and lastDesiredSideMove == 0
@@ -296,7 +295,7 @@ function SWEP:IsRunning()
     startedNoSpeed = noSpeed and not wasNoSpeed
     stoppedNoSpeed = not noSpeed and wasNoSpeed
 
-    if player_KeyDown(owner, IN_FORWARD) or player_KeyDown(owner, IN_BACK) or player_KeyDown(owner, IN_MOVELEFT) or player_KeyDown(owner, IN_MOVERIGHT) and not conflictingDirection then
+    if player_KeyDown(owner, IN_FORWARD) or player_KeyDown(owner, IN_BACK) or player_KeyDown(owner, IN_MOVELEFT) or player_KeyDown(owner, IN_MOVERIGHT) then
         return sprintDown
     end
 
