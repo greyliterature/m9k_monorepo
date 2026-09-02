@@ -250,6 +250,10 @@ function SWEP:OnRemove()
     end
 end
 
+function SWEP:SetCrouching(bool)
+    self.Crouching = bool
+end
+
 function SWEP:GetCrouching()
     return self.Crouching
 end
