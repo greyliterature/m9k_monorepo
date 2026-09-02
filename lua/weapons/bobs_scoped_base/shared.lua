@@ -442,7 +442,8 @@ function SWEP:DrawHUD()
     end
 end
 
-function SWEP:AdjustMouseSensitivity()
+local radianRatio = math.pi / 180
+function SWEP:AdjustMouseSensitivity(defaultSensitivity, localFOV, defaultFOV)
     local owner = entity_GetOwner(self)
     if not IsValid( owner ) then return end
 
@@ -450,6 +451,7 @@ function SWEP:AdjustMouseSensitivity()
     if not self:GetIronsights() then return end
 
     if owner:KeyDown( IN_ATTACK2 ) then
-        return 1 / ( self.Secondary.ScopeZoom / 2 )
+        local focalLengthSensitivity =  math.tan(radianRatio * (localFOV / 2)) / math.tan(radianRatio * (defaultFOV / 2)) -- https://www.kovaak.com/sens-scaling/
+        return focalLengthSensitivity
     end
 end
