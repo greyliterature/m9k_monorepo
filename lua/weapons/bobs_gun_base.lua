@@ -286,12 +286,13 @@ function SWEP:IsRunning()
     if not owner:IsPlayer() then return false end
 
     local sprintDown = player_KeyDown( owner, IN_SPEED )
+    local wasSprintDown = player_KeyDown_Last( owner, IN_SPEED)
     local lastDesiredForwardMove = 0 + (((player_KeyDown_Last( owner, IN_FORWARD ) and player_KeyDown_Last( owner, IN_BACK ) or (not player_KeyDown_Last(owner, IN_FORWARD) and not player_KeyDown_Last(owner, IN_BACK))) and 0) or 1)
     local lastDesiredSideMove = 0 + (((player_KeyDown_Last(owner, IN_MOVELEFT) and player_KeyDown_Last(owner, IN_MOVERIGHT) or (not player_KeyDown_Last(owner, IN_MOVELEFT) and not player_KeyDown_Last(owner, IN_MOVERIGHT))) and 0) or 1)
-    local wasNoSpeed = lastDesiredForwardMove == 0 and lastDesiredSideMove == 0
+    local wasNoSpeed = wasSprintDown and lastDesiredForwardMove == 0 and lastDesiredSideMove == 0
     local desiredForwardMove = 0 + (((player_KeyDown( owner, IN_FORWARD ) and player_KeyDown( owner, IN_BACK ) or (not player_KeyDown(owner, IN_FORWARD) and not player_KeyDown(owner, IN_BACK))) and 0) or 1)
     local desiredSideMove = 0 + (((player_KeyDown(owner, IN_MOVELEFT) and player_KeyDown(owner, IN_MOVERIGHT) or (not player_KeyDown(owner, IN_MOVELEFT) and not player_KeyDown(owner, IN_MOVERIGHT))) and 0) or 1)
-    local noSpeed = desiredForwardMove == 0 and desiredSideMove == 0
+    noSpeed = sprintDown and desiredForwardMove == 0 and desiredSideMove == 0
     startedNoSpeed = noSpeed and not wasNoSpeed
     stoppedNoSpeed = not noSpeed and wasNoSpeed
 
@@ -522,7 +523,6 @@ function SWEP:PrimaryAttack()
     if not self:CanPrimaryAttack() then return end
 
     local owner = entity_GetOwner( self )
-
     if not self.CanShootWhileRunning and self:IsRunning() and not self:IsCrouching() and noSpeed == false then
         self:SetNextPrimaryFire( CurTime() + 0.2 )
         return false
@@ -930,6 +930,7 @@ function SWEP:Reload()
     owner:SetFOV( 0, self.IronSightTime )
     self:SetIronsights( false )
     self:SetReloading( true )
+
     if owner:IsPlayer() then
         owner:SetAnimation( PLAYER_RELOAD )
     end
