@@ -255,9 +255,6 @@ function SWEP:SetCrouching(bool)
     self.Crouching = bool
 end
 
-function SWEP:GetCrouching()
-    return self.Crouching
-end
 
 local isCrouching = nil
 local wasCrouching = nil
@@ -280,6 +277,9 @@ end
 
 local startedNoSpeed = nil
 local stoppedNoSpeed = nil
+local startedAirTime = nil
+local stoppedAirTime = nil
+local isInAir = nil
 function SWEP:IsRunning()
     local owner = entity_GetOwner( self )
     if not IsValid( owner ) then return false end
@@ -295,6 +295,12 @@ function SWEP:IsRunning()
     noSpeed = sprintDown and desiredForwardMove == 0 and desiredSideMove == 0
     startedNoSpeed = noSpeed and not wasNoSpeed
     stoppedNoSpeed = not noSpeed and wasNoSpeed
+
+    isInAir = not owner:IsOnGround()
+    local wasInAir = self.isInAir
+    self.isInAir = isInAir
+    startedAirTime = isInAir and not wasInAir
+    stoppedAirTime = not isInAir and wasInAir
 
     if player_KeyDown(owner, IN_FORWARD) or player_KeyDown(owner, IN_BACK) or player_KeyDown(owner, IN_MOVELEFT) or player_KeyDown(owner, IN_MOVERIGHT) then
         return sprintDown
@@ -523,7 +529,7 @@ function SWEP:PrimaryAttack()
     if not self:CanPrimaryAttack() then return end
 
     local owner = entity_GetOwner( self )
-    if not self.CanShootWhileRunning and self:IsRunning() and not self:IsCrouching() and noSpeed == false then
+    if not self.CanShootWhileRunning and self:IsRunning() and not self:IsCrouching() and noSpeed == false and isInAir == false then
         self:SetNextPrimaryFire( CurTime() + 0.2 )
         return false
     end
@@ -1077,7 +1083,7 @@ function SWEP:IronSight()
     end
 
     -- Set run effect
-    if not self.CanShootWhileRunning and self:StartedRunning() and not self:GetReloading() and not self:IsCrouching() or (stoppedCrouching and self:IsRunning()) or (stoppedNoSpeed and self:IsRunning()) then
+    if not self.CanShootWhileRunning and self:StartedRunning() and not self:GetReloading() and not self:IsCrouching() or (stoppedAirTime and self:IsRunning()) or (stoppedCrouching and self:IsRunning()) or (stoppedNoSpeed and self:IsRunning()) and (stoppedAirTime and self:IsRunning()) and isInAir == false then
         if self:GetNextPrimaryFire() <= ( CurTime() + self.IronSightTime ) then
             self:SetNextPrimaryFire( CurTime() + self.IronSightTime )
         end
@@ -1089,7 +1095,7 @@ function SWEP:IronSight()
     end
 
     -- Unset run effect
-    if not selfTbl.CanShootWhileRunning and ((self:StoppedRunning() and not self:IsCrouching()) or (self:IsRunning() and startedCrouching)) or (startedNoSpeed and not self:IsRunning()) then
+    if not selfTbl.CanShootWhileRunning and ((startedAirTime and self:IsRunning())  or (self:StoppedRunning() and not self:IsCrouching()) or (self:IsRunning() and startedCrouching) or (startedNoSpeed and not self:IsRunning())) then
         self:SetIronsights( false )
         owner:SetFOV( 0, self.IronSightTime )
         selfTbl.DrawCrosshair = selfTbl.OrigCrossHair
