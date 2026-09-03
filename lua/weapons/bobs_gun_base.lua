@@ -251,39 +251,15 @@ function SWEP:OnRemove()
     end
 end
 
-
-function SWEP:StartedCrouching()
-    local owner = entity_GetOwner( self )
-    if not IsValid( owner ) then return end
-    if not owner:IsPlayer() then return end
-
-    local isCrouching = player_KeyDown( owner, IN_DUCK)
-    local wasCrouching = self.Crouching
-    self.Crouching = isCrouching
-
-    return isCrouching and not wasCrouching
-end
-
-
-function SWEP:StoppedCrouching()
-    local owner = entity_GetOwner( self )
-    if not IsValid( owner ) then return end
-    if not owner:IsPlayer() then return end
-
-    local isCrouching = player_KeyDown( owner, IN_DUCK)
-    local wasCrouching = self.Crouching
-
-    return not isCrouching and wasCrouching
-end
-
 function SWEP:IsRunning()
-    local owner = entity_GetOwner( self )
+    local owner = GetPredictionPlayer()
     if not IsValid( owner ) then return false end
     if not owner:IsPlayer() then return false end
 
-    local sprintDown = player_KeyDown( owner, IN_SPEED )
-    local desiredForwardMove = 0 + ((sprintDown and ((player_KeyDown( owner, IN_BACK) and -1) or 0) + ((player_KeyDown_Last( owner, IN_FORWARD) and 1) or 0)) or 0)
-    local desiredSideMove = 0 + ((sprintDown and ((player_KeyDown( owner, IN_MOVELEFT) and -1) or 0) + ((player_KeyDown_Last( owner, IN_MOVERIGHT) and 1) or 0)) or 0)
+    local cmd = owner:GetCurrentCommand()
+    local sprintDown = cmd:KeyDown(IN_SPEED)
+    local desiredForwardMove = cmd:GetForwardMove()
+    local desiredSideMove = cmd:GetSideMove()
     local noSpeed = desiredForwardMove == 0 and desiredSideMove == 0
 
     local isInAir = not owner:IsOnGround()
