@@ -56,10 +56,12 @@ function SWEP:ThinkCustom()
     local timerName = "ShotgunReload_" .. owner:UniqueID()
     --if the owner presses shoot while the timer is in effect, then...
     if (owner:KeyPressed( IN_ATTACK )) and (self:GetNextPrimaryFire() <= CurTime()) and (timer.Exists( timerName )) and not self:IsRunning() then
-        if self:CanPrimaryAttack() then --well first, if we actually can attack, then...
+        local nextShellIsLast = self:Clip1() + 1 == self.Primary.ClipSize
+        if self.firstShellInserted == true and nextShellIsLast == false then -- you can't try cancelling the reload before you even insert the first shell
             timer.Remove( timerName ) -- kill the timer, and
             self:SetReloading( false ) -- stop reloading, and
             self:PrimaryAttack() -- ATTAAAAACK!
+            self.LastReloadCancel = CurTime()
         end
     end
 
@@ -117,6 +119,7 @@ function SWEP:Reload()
     if not owner:IsPlayer() then return end
     if self:Clip1() >= self.Primary.ClipSize then return end
     if owner:GetAmmoCount( self:GetPrimaryAmmoType() ) <= 0 then return end
+    if self.LastReloadCancel and CurTime() <= self.LastReloadCancel + 1 then return end -- prevent reload cancel spam
 
     local maxcap = self.Primary.ClipSize
     local spaceavail = self:Clip1()
@@ -127,9 +130,6 @@ function SWEP:Reload()
     self:SetReloading( true )
 
     if owner:IsPlayer() then
-        if self:GetNextPrimaryFire() <= (CurTime() + 2) then
-            self:SetNextPrimaryFire( CurTime() + 2 ) -- wait TWO seconds before you can shoot again
-        end
         self:SendWeaponAnim( ACT_SHOTGUN_RELOAD_START ) -- sending start reload anim
         owner:SetAnimation( PLAYER_RELOAD )
 
@@ -140,12 +140,14 @@ function SWEP:Reload()
             self:SetIronsights( false )
         end
 
-        if SERVER and owner:Alive() then
+        if owner:Alive() then
+            self.firstShellInserted = false
             local timerName = "ShotgunReload_" .. owner:UniqueID()
             timer.Create( timerName, self.ShellTime + .05, shellz, function()
                 if not IsValid( self ) then return end
                 if IsValid( owner ) and IsValid( self ) then
-                    if owner:Alive() then
+                    self.firstShellInserted = true
+                    if SERVER and owner:Alive() then
                         self:InsertShell()
                     end
                 end
@@ -179,6 +181,9 @@ function SWEP:InsertShell()
             self.InsertingShell = true --well, I tried!
             owner:RemoveAmmo( 1, self.Primary.Ammo, false ) -- out of the frying pan
             self:SetClip1( self:Clip1() + 1 ) --  into the fire
+            if self:GetNextPrimaryFire() <= (CurTime() + self.ShellTime ) then
+                self:SetNextPrimaryFire( CurTime() + self.ShellTime ) -- wait 0.1 seconds before you can shoot again
+            end
 
             timer.Simple( .05, function()
                 if not IsValid( self ) then return end
