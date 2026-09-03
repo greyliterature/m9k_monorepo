@@ -930,6 +930,9 @@ function SWEP:Reload()
     owner:SetFOV( 0, self.IronSightTime )
     self:SetIronsights( false )
     self:SetReloading( true )
+    if owner:IsPlayer() then
+        owner:SetAnimation( PLAYER_RELOAD )
+    end
 
     local waitdammit = owner:GetViewModel():SequenceDuration()
     timer.Simple( waitdammit, function()
